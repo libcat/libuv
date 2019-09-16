@@ -71,7 +71,10 @@ ipch
 /docs/build/
 
 # Clion / IntelliJ project files
-/.idea/
+.idea
+.project
+.cproject
+.settings
 
 *.xcodeproj
 *.xcworkspace
