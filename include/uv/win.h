@@ -354,6 +354,8 @@ typedef struct {
   unsigned int active_udp_streams;                                            \
   /* Counter to started timer */                                              \
   uint64_t timer_counter;                                                     \
+  /* Round of uv loop */                                                      \
+  uint64_t round;                                                             \
   /* Threadpool */                                                            \
   void* wq[2];                                                                \
   uv_mutex_t wq_mutex;                                                        \
@@ -546,6 +548,7 @@ typedef struct {
   uint64_t timeout;                                                           \
   uint64_t repeat;                                                            \
   uint64_t start_id;                                                          \
+  uint64_t round;                                                             \
   uv_timer_cb timer_cb;
 
 #define UV_ASYNC_PRIVATE_FIELDS                                               \

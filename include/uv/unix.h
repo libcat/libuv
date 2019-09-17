@@ -245,6 +245,7 @@ typedef struct {
   } timer_heap;                                                               \
   uint64_t timer_counter;                                                     \
   uint64_t time;                                                              \
+  uint64_t round;                                                             \
   int signal_pipefd[2];                                                       \
   uv__io_t signal_io_watcher;                                                 \
   uv_signal_t child_watcher;                                                  \
@@ -332,7 +333,8 @@ typedef struct {
   void* heap_node[3];                                                         \
   uint64_t timeout;                                                           \
   uint64_t repeat;                                                            \
-  uint64_t start_id;
+  uint64_t start_id;                                                          \
+  uint64_t round;
 
 #define UV_GETADDRINFO_PRIVATE_FIELDS                                         \
   struct uv__work work_req;                                                   \

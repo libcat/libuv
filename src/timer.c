@@ -89,6 +89,7 @@ int uv_timer_start(uv_timer_t* handle,
   handle->repeat = repeat;
   /* start_id is the second index to be compared in uv__timer_cmp() */
   handle->start_id = handle->loop->timer_counter++;
+  handle->round = handle->loop->round;
 
   heap_insert(timer_heap(handle->loop),
               (struct heap_node*) &handle->heap_node,
@@ -166,7 +167,12 @@ void uv__run_timers(uv_loop_t* loop) {
       break;
 
     handle = container_of(heap_node, uv_timer_t, heap_node);
+
     if (handle->timeout > loop->time)
+      break;
+
+    /* must be triggered in the next round */
+    if (handle->round == loop->round)
       break;
 
     uv_timer_stop(handle);

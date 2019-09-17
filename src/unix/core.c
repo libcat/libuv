@@ -402,6 +402,39 @@ int uv_run(uv_loop_t* loop, uv_run_mode mode) {
 }
 
 
+int uv_crun(uv_loop_t* loop) {
+  int r = uv__loop_alive(loop);
+
+  if (!r)
+    uv__update_time(loop);
+
+  while (r != 0 && loop->stop_flag == 0) {
+    uv__run_pending(loop);
+    uv__run_idle(loop);
+    uv__run_prepare(loop);
+
+    uv__io_poll(loop, uv_backend_timeout(loop));
+
+    loop->round++;
+    uv__update_time(loop);
+    uv__run_timers(loop);
+
+    uv__run_check(loop);
+    uv__run_closing_handles(loop);
+
+    r = uv__loop_alive(loop);
+  }
+
+  /* The if statement lets gcc compile it to a conditional store. Avoids
+   * dirtying a cache line.
+   */
+  if (loop->stop_flag != 0)
+    loop->stop_flag = 0;
+
+  return r;
+}
+
+
 void uv_update_time(uv_loop_t* loop) {
   uv__update_time(loop);
 }
