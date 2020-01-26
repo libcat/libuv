@@ -709,10 +709,15 @@ static void uv__drain(uv_stream_t* stream) {
 
 
 static ssize_t uv__writev(int fd, struct iovec* vec, size_t n) {
-  if (n == 1)
-    return write(fd, vec->iov_base, vec->iov_len);
-  else
+  if (n == 1) {
+      if (vec->iov_len == 0) {
+          /* uv_write(size=0) and trigger the OUT event */
+          return 0;
+      }
+      return write(fd, vec->iov_base, vec->iov_len);
+  } else {
     return writev(fd, vec, n);
+  }
 }
 
 
