@@ -553,7 +553,9 @@ UV_EXTERN int uv_tcp_simultaneous_accepts(uv_tcp_t* handle, int enable);
 
 enum uv_tcp_flags {
   /* Used with uv_tcp_bind, when an IPv6 address is used. */
-  UV_TCP_IPV6ONLY = 1
+  UV_TCP_IPV6ONLY = 1,
+  /* Unix only (or ignored) */
+  UV_TCP_REUSEPORT = 2,
 };
 
 UV_EXTERN int uv_tcp_bind(uv_tcp_t* handle,
@@ -600,7 +602,9 @@ enum uv_udp_flags {
    * (provided they all set the flag) but only the last one to bind will receive
    * any traffic, in effect "stealing" the port from the previous listener.
    */
-  UV_UDP_REUSEADDR = 4
+  UV_UDP_REUSEADDR = 4,
+  /* Unix only (or ignored) */
+  UV_UDP_REUSEPORT = 8,
 };
 
 typedef void (*uv_udp_send_cb)(uv_udp_send_t* req, int status);
