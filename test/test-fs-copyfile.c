@@ -188,7 +188,7 @@ TEST_IMPL(fs_copyfile) {
   unlink(dst);
   r = uv_fs_copyfile(NULL, &req, fixture, dst, UV_FS_COPYFILE_FICLONE_FORCE,
                      NULL);
-  ASSERT(r == 0 || r == UV_ENOSYS || r == UV_ENOTSUP);
+  ASSERT(r <= 0);
 
   if (r == 0)
     handle_result(&req);
@@ -199,8 +199,11 @@ TEST_IMPL(fs_copyfile) {
   touch_file(dst, 0);
   chmod(dst, S_IRUSR|S_IRGRP|S_IROTH); /* Sets file mode to 444 (read-only). */
   r = uv_fs_copyfile(NULL, &req, fixture, dst, 0, NULL);
+  /* On IBMi PASE, qsecofr users can overwrite read-only files */
+# ifndef __PASE__
   ASSERT(req.result == UV_EACCES);
   ASSERT(r == UV_EACCES);
+# endif
   uv_fs_req_cleanup(&req);
 #endif
 

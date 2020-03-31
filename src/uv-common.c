@@ -100,6 +100,17 @@ void* uv__realloc(void* ptr, size_t size) {
   return NULL;
 }
 
+void* uv__reallocf(void* ptr, size_t size) {
+  void* newptr;
+
+  newptr = uv__realloc(ptr, size);
+  if (newptr == NULL)
+    if (size > 0)
+      uv__free(ptr);
+
+  return newptr;
+}
+
 int uv_replace_allocator(uv_malloc_func malloc_func,
                          uv_realloc_func realloc_func,
                          uv_calloc_func calloc_func,
@@ -211,6 +222,9 @@ int uv_ip4_addr(const char* ip, int port, struct sockaddr_in* addr) {
   memset(addr, 0, sizeof(*addr));
   addr->sin_family = AF_INET;
   addr->sin_port = htons(port);
+#ifdef SIN6_LEN
+  addr->sin_len = sizeof(*addr);
+#endif
   return uv_inet_pton(AF_INET, ip, &(addr->sin_addr.s_addr));
 }
 
