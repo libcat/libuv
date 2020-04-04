@@ -218,6 +218,12 @@ typedef struct {
   char* errmsg;
 } uv_lib_t;
 
+#ifdef HAVE_LIBCAT
+#define UV_ROUND_OF_LOOP uint64_t round;
+#else
+#define UV_ROUND_OF_LOOP
+#endif
+
 #define UV_LOOP_PRIVATE_FIELDS                                                \
   unsigned long flags;                                                        \
   int backend_fd;                                                             \
@@ -245,7 +251,7 @@ typedef struct {
   } timer_heap;                                                               \
   uint64_t timer_counter;                                                     \
   uint64_t time;                                                              \
-  uint64_t round;                                                             \
+  UV_ROUND_OF_LOOP                                                            \
   int signal_pipefd[2];                                                       \
   uv__io_t signal_io_watcher;                                                 \
   uv_signal_t child_watcher;                                                  \
@@ -334,7 +340,7 @@ typedef struct {
   uint64_t timeout;                                                           \
   uint64_t repeat;                                                            \
   uint64_t start_id;                                                          \
-  uint64_t round;
+  UV_ROUND_OF_LOOP
 
 #define UV_GETADDRINFO_PRIVATE_FIELDS                                         \
   struct uv__work work_req;                                                   \

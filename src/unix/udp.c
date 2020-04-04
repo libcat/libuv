@@ -533,6 +533,7 @@ int uv__udp_bind(uv_udp_t* handle,
       return err;
   }
 
+#ifdef HAVE_LIBCAT
 #ifdef SO_REUSEPORT
   if (flags & UV_UDP_REUSEPORT) {
       yes = 1;
@@ -541,6 +542,7 @@ int uv__udp_bind(uv_udp_t* handle,
         return err;
       }
   }
+#endif
 #endif
 
   if (flags & UV_UDP_IPV6ONLY) {

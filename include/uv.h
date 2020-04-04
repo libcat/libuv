@@ -291,7 +291,9 @@ UV_EXTERN int uv_loop_configure(uv_loop_t* loop, uv_loop_option option, ...);
 UV_EXTERN int uv_loop_fork(uv_loop_t* loop);
 
 UV_EXTERN int uv_run(uv_loop_t*, uv_run_mode mode);
+#ifdef HAVE_LIBCAT
 UV_EXTERN int uv_crun(uv_loop_t* loop);
+#endif
 UV_EXTERN void uv_stop(uv_loop_t*);
 
 UV_EXTERN void uv_ref(uv_handle_t*);
@@ -560,8 +562,10 @@ UV_EXTERN int uv_tcp_simultaneous_accepts(uv_tcp_t* handle, int enable);
 enum uv_tcp_flags {
   /* Used with uv_tcp_bind, when an IPv6 address is used. */
   UV_TCP_IPV6ONLY = 1,
+#ifdef HAVE_LIBCAT
   /* Unix only (or ignored) */
   UV_TCP_REUSEPORT = 2,
+#endif
 };
 
 UV_EXTERN int uv_tcp_bind(uv_tcp_t* handle,
@@ -614,8 +618,10 @@ enum uv_udp_flags {
    * must not be freed by the recv_cb callback.
    */
   UV_UDP_MMSG_CHUNK = 8,
+#ifdef HAVE_LIBCAT
   /* Unix only (or ignored) */
   UV_UDP_REUSEPORT = 16,
+#endif
 };
 
 typedef void (*uv_udp_send_cb)(uv_udp_send_t* req, int status);

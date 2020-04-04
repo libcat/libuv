@@ -237,7 +237,9 @@ int uv_loop_init(uv_loop_t* loop) {
    * to zero before calling uv_update_time for the first time.
    */
   loop->time = 0;
+#ifdef HAVE_LIBCAT
   loop->round = 0;
+#endif
   uv_update_time(loop);
 
   QUEUE_INIT(&loop->wq);
@@ -566,6 +568,7 @@ int uv_run(uv_loop_t *loop, uv_run_mode mode) {
 }
 
 
+#ifdef HAVE_LIBCAT
 int uv_crun(uv_loop_t *loop) {
   int r = uv__loop_alive(loop);
 
@@ -601,6 +604,7 @@ int uv_crun(uv_loop_t *loop) {
 
   return r;
 }
+#endif
 
 
 int uv_fileno(const uv_handle_t* handle, uv_os_fd_t* fd) {

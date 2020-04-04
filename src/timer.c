@@ -89,7 +89,9 @@ int uv_timer_start(uv_timer_t* handle,
   handle->repeat = repeat;
   /* start_id is the second index to be compared in timer_less_than() */
   handle->start_id = handle->loop->timer_counter++;
+#ifdef HAVE_LIBCAT
   handle->round = handle->loop->round;
+#endif
 
   heap_insert(timer_heap(handle->loop),
               (struct heap_node*) &handle->heap_node,
@@ -171,9 +173,11 @@ void uv__run_timers(uv_loop_t* loop) {
     if (handle->timeout > loop->time)
       break;
 
+#ifdef HAVE_LIBCAT
     /* must be triggered in the next round */
     if (handle->round == loop->round)
       break;
+#endif
 
     uv_timer_stop(handle);
     uv_timer_again(handle);

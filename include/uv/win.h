@@ -322,6 +322,12 @@ typedef struct {
   char* errmsg;
 } uv_lib_t;
 
+#ifdef HAVE_LIBCAT
+#define UV_ROUND_OF_LOOP uint64_t round;
+#else
+#define UV_ROUND_OF_LOOP
+#endif
+
 #define UV_LOOP_PRIVATE_FIELDS                                                \
     /* The loop's I/O completion port */                                      \
   HANDLE iocp;                                                                \
@@ -355,7 +361,7 @@ typedef struct {
   /* Counter to started timer */                                              \
   uint64_t timer_counter;                                                     \
   /* Round of uv loop */                                                      \
-  uint64_t round;                                                             \
+  UV_ROUND_OF_LOOP                                                            \
   /* Threadpool */                                                            \
   void* wq[2];                                                                \
   uv_mutex_t wq_mutex;                                                        \
@@ -548,7 +554,7 @@ typedef struct {
   uint64_t timeout;                                                           \
   uint64_t repeat;                                                            \
   uint64_t start_id;                                                          \
-  uint64_t round;                                                             \
+  UV_ROUND_OF_LOOP                                                            \
   uv_timer_cb timer_cb;
 
 #define UV_ASYNC_PRIVATE_FIELDS                                               \

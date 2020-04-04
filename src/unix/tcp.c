@@ -164,12 +164,14 @@ int uv__tcp_bind(uv_tcp_t* tcp,
   if (setsockopt(tcp->io_watcher.fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)))
     return UV__ERR(errno);
 
+#ifdef HAVE_LIBCAT
 #ifdef SO_REUSEPORT
   if (flags & UV_TCP_REUSEPORT) {
       on = 1;
       if (setsockopt(tcp->io_watcher.fd, SOL_SOCKET, SO_REUSEPORT, &on, sizeof(on)))
           return UV__ERR(errno);
   }
+#endif
 #endif
 
 #ifndef __OpenBSD__

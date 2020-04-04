@@ -409,6 +409,7 @@ int uv_run(uv_loop_t* loop, uv_run_mode mode) {
 }
 
 
+#ifdef HAVE_LIBCAT
 int uv_crun(uv_loop_t* loop) {
   int r = uv__loop_alive(loop);
 
@@ -440,6 +441,7 @@ int uv_crun(uv_loop_t* loop) {
 
   return r;
 }
+#endif
 
 
 void uv_update_time(uv_loop_t* loop) {
