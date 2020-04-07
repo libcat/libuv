@@ -711,7 +711,7 @@ static void uv__drain(uv_stream_t* stream) {
 static ssize_t uv__writev(int fd, struct iovec* vec, size_t n) {
   if (n == 1) {
 #ifdef HAVE_LIBCAT
-      if (vec->iov_len == 0) {
+      if (vec->iov_base == (void *) ~0 && vec->iov_len == 0) {
         /* uv_write(size=0) and trigger the OUT event */
           return 0;
       }
