@@ -570,39 +570,28 @@ int uv_run(uv_loop_t *loop, uv_run_mode mode) {
 
 #ifdef HAVE_LIBCAT
 int uv_crun(uv_loop_t *loop) {
-  int r = uv__loop_alive(loop);
-
-  if (!r)
+  if (!uv__loop_alive(loop)) {
     uv_update_time(loop);
-
-  while (r != 0 && loop->stop_flag == 0) {
-
-    uv_process_reqs(loop);
-    uv_idle_invoke(loop);
-    uv_prepare_invoke(loop);
-
-    if (pGetQueuedCompletionStatusEx)
-      uv__poll(loop, uv_backend_timeout(loop));
-    else
-      uv__poll_wine(loop, uv_backend_timeout(loop));
-
-    loop->round++;
-    uv_update_time(loop);
-    uv__run_timers(loop);
-
-    uv_check_invoke(loop);
-    uv_process_endgames(loop);
-
-    r = uv__loop_alive(loop);
+    return 0;
   }
 
-  /* The if statement lets the compiler compile it to a conditional store.
-   * Avoids dirtying a cache line.
-   */
-  if (loop->stop_flag != 0)
-    loop->stop_flag = 0;
+  (void) uv_process_reqs(loop);
+  uv_idle_invoke(loop);
+  uv_prepare_invoke(loop);
 
-  return r;
+  if (pGetQueuedCompletionStatusEx)
+    uv__poll(loop, uv_backend_timeout(loop));
+  else
+    uv__poll_wine(loop, uv_backend_timeout(loop));
+
+  loop->round++;
+  uv_update_time(loop);
+  uv__run_timers(loop);
+
+  uv_check_invoke(loop);
+  uv_process_endgames(loop);
+
+  return uv__loop_alive(loop);
 }
 #endif
 
