@@ -43,14 +43,22 @@ int uv_pipe_init(uv_loop_t* loop, uv_pipe_t* handle, int ipc) {
 int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
   struct sockaddr_un saddr;
   const char* pipe_fname;
+#ifdef HAVE_LIBCAT
+  int new_socket;
+#endif
   int sockfd;
   int err;
 
   pipe_fname = NULL;
 
+#ifdef HAVE_LIBCAT
+  if (handle->flags & UV_HANDLE_BOUND)
+    return UV_EINVAL;
+#else
   /* Already bound? */
   if (uv__stream_fd(handle) >= 0)
     return UV_EINVAL;
+#endif
 
   /* Make a copy of the file name, it outlives this function's scope. */
   pipe_fname = uv__strdup(name);
@@ -60,10 +68,18 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
   /* We've got a copy, don't touch the original any more. */
   name = NULL;
 
+#ifdef HAVE_LIBCAT
+  sockfd = uv__stream_fd(handle);
+  new_socket = sockfd < 0;
+  if (new_socket) {
+#endif
   err = uv__socket(AF_UNIX, SOCK_STREAM, 0);
   if (err < 0)
     goto err_socket;
   sockfd = err;
+#ifdef HAVE_LIBCAT
+  }
+#endif
 
   memset(&saddr, 0, sizeof saddr);
   uv__strscpy(saddr.sun_path, pipe_fname, sizeof(saddr.sun_path));
@@ -75,6 +91,9 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
     if (err == UV_ENOENT)
       err = UV_EACCES;
 
+#ifdef HAVE_LIBCAT
+    if (new_socket)
+#endif
     uv__close(sockfd);
     goto err_socket;
   }
@@ -212,6 +231,11 @@ void uv_pipe_connect(uv_connect_t* req,
   }
 
   err = 0;
+#ifdef HAVE_LIBCAT
+  if ((handle->flags & (UV_HANDLE_READABLE | UV_HANDLE_WRITABLE)) == 0) {
+      new_sock = 1;
+  }
+#endif
   if (new_sock) {
     err = uv__stream_open((uv_stream_t*)handle,
                           uv__stream_fd(handle),
