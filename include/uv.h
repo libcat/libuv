@@ -770,10 +770,20 @@ struct uv_pipe_s {
 UV_EXTERN int uv_pipe_init(uv_loop_t*, uv_pipe_t* handle, int ipc);
 UV_EXTERN int uv_pipe_open(uv_pipe_t*, uv_file file);
 UV_EXTERN int uv_pipe_bind(uv_pipe_t* handle, const char* name);
+#ifdef HAVE_LIBCAT
+UV_EXTERN int uv_pipe_bind_ex(uv_pipe_t* handle, const char* name, size_t name_length);
+#endif
 UV_EXTERN void uv_pipe_connect(uv_connect_t* req,
                                uv_pipe_t* handle,
                                const char* name,
                                uv_connect_cb cb);
+#ifdef HAVE_LIBCAT
+UV_EXTERN void uv_pipe_connect_ex(uv_connect_t* req,
+                               uv_pipe_t* handle,
+                               const char* name,
+                               size_t name_length,
+                               uv_connect_cb cb);
+#endif
 UV_EXTERN int uv_pipe_getsockname(const uv_pipe_t* handle,
                                   char* buffer,
                                   size_t* size);

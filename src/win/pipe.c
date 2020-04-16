@@ -602,6 +602,25 @@ error:
 }
 
 
+#ifdef HAVE_LIBCAT
+int uv_pipe_bind_ex(uv_pipe_t* handle, const char* name, size_t name_length) {
+    char *pipe_fname;
+    int error;
+
+    pipe_fname = (char *) uv__malloc(name_length + 1);
+    if (pipe_fname == NULL)
+      return UV_ENOMEM;
+    pipe_fname[name_length] = '\0';
+
+    error = uv_pipe_bind(handle, pipe_fname);
+
+    uv__free(pipe_fname);
+
+    return error;
+}
+#endif
+
+
 static DWORD WINAPI pipe_connect_thread_proc(void* parameter) {
   uv_loop_t* loop;
   uv_pipe_t* handle;
@@ -725,6 +744,25 @@ error:
   REGISTER_HANDLE_REQ(loop, handle, req);
   return;
 }
+
+
+#ifdef HAVE_LIBCAT
+void uv_pipe_connect_ex(uv_connect_t* req, uv_pipe_t* handle,
+    const char* name, size_t name_length, uv_connect_cb cb) {
+    char *pipe_fname;
+    int error;
+
+    pipe_fname = (char *) uv__malloc(name_length + 1);
+    if (pipe_fname == NULL)
+      pipe_fname = (char *) "";
+    else
+      pipe_fname[name_length] = '\0';
+
+    error = uv_pipe_connect(req, handle, name, cb);
+
+    uv__free(pipe_fname);
+}
+#endif
 
 
 void uv__pipe_interrupt_read(uv_pipe_t* handle) {

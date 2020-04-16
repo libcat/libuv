@@ -40,7 +40,27 @@ int uv_pipe_init(uv_loop_t* loop, uv_pipe_t* handle, int ipc) {
 }
 
 
+#ifdef HAVE_LIBCAT
+#ifdef __linux__
+#define uv_pipe_is_linux_abstract_name(name) (name[0] == '\0')
+#else
+#define uv_pipe_is_linux_abstract_name(name) 0
+#endif
+#endif
+
+
+#ifdef HAVE_LIBCAT
 int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
+  return uv_pipe_bind_ex(handle, name, strlen(name));
+}
+#endif
+
+
+#ifdef HAVE_LIBCAT
+int uv_pipe_bind_ex(uv_pipe_t* handle, const char* name, size_t name_length) {
+#else
+int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
+#endif
   struct sockaddr_un saddr;
   const char* pipe_fname;
 #ifdef HAVE_LIBCAT
@@ -61,12 +81,24 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
 #endif
 
   /* Make a copy of the file name, it outlives this function's scope. */
+#ifdef HAVE_LIBCAT
+  if (name_length > 0 && !uv_pipe_is_linux_abstract_name(name)) {
+    pipe_fname = (const char *) uv__malloc(name_length + 1);
+    if (pipe_fname == NULL)
+      return UV_ENOMEM;
+    memcpy((void *) pipe_fname, name, name_length);
+    ((char *) pipe_fname)[name_length] = '\0';
+  }
+#else
   pipe_fname = uv__strdup(name);
   if (pipe_fname == NULL)
     return UV_ENOMEM;
+#endif
 
+#ifndef HAVE_LIBCAT
   /* We've got a copy, don't touch the original any more. */
   name = NULL;
+#endif
 
 #ifdef HAVE_LIBCAT
   sockfd = uv__stream_fd(handle);
@@ -82,10 +114,22 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
 #endif
 
   memset(&saddr, 0, sizeof saddr);
+#ifdef HAVE_LIBCAT
+  if (name_length > 0) {
+    if (pipe_fname)
+      name_length += 1;
+    memcpy(saddr.sun_path, pipe_fname ? pipe_fname : name, name_length);
+  }
+#else
   uv__strscpy(saddr.sun_path, pipe_fname, sizeof(saddr.sun_path));
+#endif
   saddr.sun_family = AF_UNIX;
 
+#ifdef HAVE_LIBCAT
+  if (bind(sockfd, (struct sockaddr*)&saddr, offsetof(struct sockaddr_un, sun_path) + name_length)) {
+#else
   if (bind(sockfd, (struct sockaddr*)&saddr, sizeof saddr)) {
+#endif
     err = UV__ERR(errno);
     /* Convert ENOENT to EACCES for compatibility with Windows. */
     if (err == UV_ENOENT)
@@ -105,6 +149,9 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
   return 0;
 
 err_socket:
+#ifdef HAVE_LIBCAT
+  if (pipe_fname && !uv_pipe_is_linux_abstract_name(pipe_fname))
+#endif
   uv__free((void*)pipe_fname);
   return err;
 }
@@ -144,6 +191,9 @@ void uv__pipe_close(uv_pipe_t* handle) {
      * unlinks a socket with the same name that's just been created by
      * another thread or process.
      */
+#ifdef HAVE_LIBCAT
+    if (handle->pipe_fname[0] != '\0') /* linux abstrace namespace */
+#endif
     unlink(handle->pipe_fname);
     uv__free((void*)handle->pipe_fname);
     handle->pipe_fname = NULL;
@@ -189,10 +239,25 @@ int uv_pipe_open(uv_pipe_t* handle, uv_file fd) {
 }
 
 
+#ifdef HAVE_LIBCAT
+void uv_pipe_connect(uv_connect_t* req, uv_pipe_t* handle, const char* name, uv_connect_cb cb) {
+  uv_pipe_connect_ex(req, handle, name, strlen(name), cb);
+}
+#endif
+
+
+#ifdef HAVE_LIBCAT
+void uv_pipe_connect_ex(uv_connect_t* req,
+                    uv_pipe_t* handle,
+                    const char* name,
+                    size_t name_length,
+                    uv_connect_cb cb) {
+#else
 void uv_pipe_connect(uv_connect_t* req,
                     uv_pipe_t* handle,
                     const char* name,
                     uv_connect_cb cb) {
+#endif
   struct sockaddr_un saddr;
   int new_sock;
   int err;
@@ -208,12 +273,25 @@ void uv_pipe_connect(uv_connect_t* req,
   }
 
   memset(&saddr, 0, sizeof saddr);
+#ifdef HAVE_LIBCAT
+  if (name_length > 0) {
+    memcpy(saddr.sun_path, name, name_length);
+    if (!uv_pipe_is_linux_abstract_name(name)) {
+        saddr.sun_path[name_length++] = '\0';
+    }
+  }
+#else
   uv__strscpy(saddr.sun_path, name, sizeof(saddr.sun_path));
+#endif
   saddr.sun_family = AF_UNIX;
 
   do {
     r = connect(uv__stream_fd(handle),
+#ifdef HAVE_LIBCAT
+                (struct sockaddr*)&saddr, offsetof(struct sockaddr_un, sun_path) + name_length);
+#else
                 (struct sockaddr*)&saddr, sizeof saddr);
+#endif
   }
   while (r == -1 && errno == EINTR);
 
