@@ -265,6 +265,8 @@ typedef void* (*uv_realloc_func)(void* ptr, size_t size);
 typedef void* (*uv_calloc_func)(size_t count, size_t size);
 typedef void (*uv_free_func)(void* ptr);
 
+UV_EXTERN void uv_library_shutdown(void);
+
 UV_EXTERN int uv_replace_allocator(uv_malloc_func malloc_func,
                                    uv_realloc_func realloc_func,
                                    uv_calloc_func calloc_func,
@@ -622,6 +624,10 @@ enum uv_udp_flags {
   /* Unix only (or ignored) */
   UV_UDP_REUSEPORT = 16,
 #endif
+  /*
+   * Indicates that recvmmsg should be used, if available.
+   */
+  UV_UDP_RECVMMSG = 256
 };
 
 typedef void (*uv_udp_send_cb)(uv_udp_send_t* req, int status);
@@ -1085,11 +1091,11 @@ UV_EXTERN int uv_cancel(uv_req_t* req);
 
 
 struct uv_cpu_times_s {
-  uint64_t user;
-  uint64_t nice;
-  uint64_t sys;
-  uint64_t idle;
-  uint64_t irq;
+  uint64_t user; /* milliseconds */
+  uint64_t nice; /* milliseconds */
+  uint64_t sys; /* milliseconds */
+  uint64_t idle; /* milliseconds */
+  uint64_t irq; /* milliseconds */
 };
 
 struct uv_cpu_info_s {
