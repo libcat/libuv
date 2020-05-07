@@ -750,7 +750,6 @@ error:
 void uv_pipe_connect_ex(uv_connect_t* req, uv_pipe_t* handle,
     const char* name, size_t name_length, uv_connect_cb cb) {
     char *pipe_fname;
-    int error;
 
     pipe_fname = (char *) uv__malloc(name_length + 1);
     if (pipe_fname == NULL)
@@ -758,7 +757,7 @@ void uv_pipe_connect_ex(uv_connect_t* req, uv_pipe_t* handle,
     else
       pipe_fname[name_length] = '\0';
 
-    error = uv_pipe_connect(req, handle, name, cb);
+    uv_pipe_connect(req, handle, name, cb);
 
     uv__free(pipe_fname);
 }
