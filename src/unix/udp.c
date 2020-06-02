@@ -439,17 +439,9 @@ static void uv__udp_sendmsg(uv_udp_t* handle) {
     h.msg_iov = (struct iovec*) req->bufs;
     h.msg_iovlen = req->nbufs;
 
-#ifdef HAVE_LIBCAT
-    if (h.msg_iovlen == 1 && h.msg_iov->iov_base == (void *) ~0 && h.msg_iov->iov_len == 0) {
-        size = 0;
-    } else {
-#endif
-        do {
-          size = sendmsg(handle->io_watcher.fd, &h, 0);
-        } while (size == -1 && errno == EINTR);
-#ifdef HAVE_LIBCAT
-    }
-#endif
+    do {
+      size = sendmsg(handle->io_watcher.fd, &h, 0);
+    } while (size == -1 && errno == EINTR);
 
     if (size == -1) {
       if (errno == EAGAIN || errno == EWOULDBLOCK || errno == ENOBUFS)
