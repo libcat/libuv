@@ -522,6 +522,12 @@ UV_EXTERN int uv_write2(uv_write_t* req,
 UV_EXTERN int uv_try_write(uv_stream_t* handle,
                            const uv_buf_t bufs[],
                            unsigned int nbufs);
+#ifdef HAVE_LIBCAT
+UV_EXTERN int uv_try_write2(uv_stream_t* stream,
+		                    const uv_buf_t bufs[],
+		                    unsigned int nbufs,
+		                    uv_stream_t* send_handle);
+#endif
 
 /* uv_write_t is a subclass of uv_req_t. */
 struct uv_write_s {

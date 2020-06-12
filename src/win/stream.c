@@ -195,6 +195,19 @@ int uv_try_write(uv_stream_t* stream,
 }
 
 
+#ifdef HAVE_LIBCAT
+int uv_try_write2(uv_stream_t* stream,
+                 const uv_buf_t bufs[],
+                 unsigned int nbufs,
+                 uv_stream_t* send_handle) {
+    if (send_handle != NULL)
+        return UV_EAGAIN;
+
+    return uv_try_write(bufs, nbufs, send_handle);
+}
+#endif
+
+
 int uv_shutdown(uv_shutdown_t* req, uv_stream_t* handle, uv_shutdown_cb cb) {
   uv_loop_t* loop = handle->loop;
 

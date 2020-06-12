@@ -1504,9 +1504,16 @@ void uv_try_write_cb(uv_write_t* req, int status) {
 }
 
 
+#ifndef HAVE_LIBCAT
 int uv_try_write(uv_stream_t* stream,
                  const uv_buf_t bufs[],
                  unsigned int nbufs) {
+#else
+int uv_try_write2(uv_stream_t* stream,
+                 const uv_buf_t bufs[],
+                 unsigned int nbufs,
+                 uv_stream_t* send_handle) {
+#endif
   int r;
   int has_pollout;
   size_t written;
@@ -1550,6 +1557,15 @@ int uv_try_write(uv_stream_t* stream,
   else
     return written;
 }
+
+
+#ifdef HAVE_LIBCAT
+int uv_try_write(uv_stream_t* stream,
+                 const uv_buf_t bufs[],
+                 unsigned int nbufs) {
+    return uv_try_write2(stream, bufs, nbufs, NULL);
+}
+#endif
 
 
 int uv_read_start(uv_stream_t* stream,
