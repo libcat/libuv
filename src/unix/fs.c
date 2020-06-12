@@ -229,11 +229,7 @@ static ssize_t uv__fs_futime(uv_fs_t* req) {
   struct timespec ts[2];
   ts[0] = uv__fs_to_timespec(req->atime);
   ts[1] = uv__fs_to_timespec(req->mtime);
-#if defined(__ANDROID_API__) && __ANDROID_API__ < 21
-  return utimensat(req->file, NULL, ts, 0);
-#else
   return futimens(req->file, ts);
-#endif
 #elif defined(__APPLE__)                                                      \
     || defined(__DragonFly__)                                                 \
     || defined(__FreeBSD__)                                                   \
@@ -1110,9 +1106,10 @@ static ssize_t uv__fs_copyfile(uv_fs_t* req) {
   int dst_flags;
   int result;
   int err;
-  size_t bytes_to_send;
-  int64_t in_offset;
-  ssize_t bytes_written;
+  off_t bytes_to_send;
+  off_t in_offset;
+  off_t bytes_written;
+  size_t bytes_chunk;
 
   dstfd = -1;
   err = 0;
@@ -1211,7 +1208,10 @@ static ssize_t uv__fs_copyfile(uv_fs_t* req) {
   bytes_to_send = src_statsbuf.st_size;
   in_offset = 0;
   while (bytes_to_send != 0) {
-    uv_fs_sendfile(NULL, &fs_req, dstfd, srcfd, in_offset, bytes_to_send, NULL);
+    bytes_chunk = SSIZE_MAX;
+    if (bytes_to_send < (off_t) bytes_chunk)
+      bytes_chunk = bytes_to_send;
+    uv_fs_sendfile(NULL, &fs_req, dstfd, srcfd, in_offset, bytes_chunk, NULL);
     bytes_written = fs_req.result;
     uv_fs_req_cleanup(&fs_req);
 
@@ -2081,4 +2081,8 @@ int uv_fs_statfs(uv_loop_t* loop,
   INIT(STATFS);
   PATH;
   POST;
+}
+
+int uv_fs_get_system_error(const uv_fs_t* req) {
+  return -req->result;
 }

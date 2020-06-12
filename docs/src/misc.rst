@@ -233,6 +233,8 @@ API
                  sure the allocator is changed while no memory was allocated with
                  the previous allocator, or that they are compatible.
 
+    .. warning:: Allocator must be thread-safe.
+
 .. c:function:: void uv_library_shutdown(void);
 
     .. versionadded:: 1.38.0
@@ -244,10 +246,10 @@ API
     .. warning:: Only call :c:func:`uv_library_shutdown()` once.
 
     .. warning:: Don't call :c:func:`uv_library_shutdown()` when there are
-    still event loops or I/O requests active.
+                 still event loops or I/O requests active.
 
     .. warning:: Don't call libuv functions after calling
-    :c:func:`uv_library_shutdown()`.
+                 :c:func:`uv_library_shutdown()`.
 
 .. c:function:: uv_buf_t uv_buf_init(char* base, unsigned int len)
 

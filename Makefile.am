@@ -386,8 +386,7 @@ libuv_la_SOURCES += src/unix/android-ifaddrs.c \
                     src/unix/procfs-exepath.c \
                     src/unix/pthread-fixes.c \
                     src/unix/random-getrandom.c \
-                    src/unix/random-sysctl-linux.c \
-                    src/unix/sysinfo-loadavg.c
+                    src/unix/random-sysctl-linux.c
 endif
 
 if CYGWIN
@@ -409,8 +408,9 @@ uvinclude_HEADERS += include/uv/darwin.h
 libuv_la_CFLAGS += -D_DARWIN_USE_64_BIT_INODE=1
 libuv_la_CFLAGS += -D_DARWIN_UNLIMITED_SELECT=1
 libuv_la_SOURCES += src/unix/bsd-ifaddrs.c \
-                    src/unix/darwin.c \
                     src/unix/darwin-proctitle.c \
+                    src/unix/darwin-stub.h \
+                    src/unix/darwin.c \
                     src/unix/fsevents.c \
                     src/unix/kqueue.c \
                     src/unix/proctitle.c \
@@ -467,8 +467,7 @@ libuv_la_SOURCES += src/unix/linux-core.c \
                     src/unix/procfs-exepath.c \
                     src/unix/proctitle.c \
                     src/unix/random-getrandom.c \
-                    src/unix/random-sysctl-linux.c \
-                    src/unix/sysinfo-loadavg.c
+                    src/unix/random-sysctl-linux.c
 test_run_tests_LDFLAGS += -lutil
 endif
 

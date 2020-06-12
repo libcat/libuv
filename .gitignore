@@ -70,6 +70,7 @@ ipch
 .project
 .cproject
 .settings
+cmake-build-debug/
 
 *.xcodeproj
 *.xcworkspace
