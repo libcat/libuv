@@ -408,16 +408,22 @@ int uv_run(uv_loop_t* loop, uv_run_mode mode) {
 
 #ifdef HAVE_LIBCAT
 int uv_crun(uv_loop_t* loop) {
+  int timeout;
+
   if (!uv__loop_alive(loop)) {
     uv__update_time(loop);
     return 0;
   }
 
-  (void) uv__run_pending(loop);
+  if (uv__run_pending(loop)) {
+    timeout = 0;
+  } else {
+    timeout = uv_backend_timeout(loop);
+  }
   uv__run_idle(loop);
   uv__run_prepare(loop);
 
-  uv__io_poll(loop, uv_backend_timeout(loop));
+  uv__io_poll(loop, timeout);
 
   loop->round++;
   uv__update_time(loop);

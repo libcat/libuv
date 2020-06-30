@@ -570,19 +570,25 @@ int uv_run(uv_loop_t *loop, uv_run_mode mode) {
 
 #ifdef HAVE_LIBCAT
 int uv_crun(uv_loop_t *loop) {
+  DWORD timeout;
+
   if (!uv__loop_alive(loop)) {
     uv_update_time(loop);
     return 0;
   }
 
-  (void) uv_process_reqs(loop);
+  if (uv_process_reqs(loop)) {
+    timeout = 0;
+  } else {
+    timeout = uv_backend_timeout(loop);
+  }
   uv_idle_invoke(loop);
   uv_prepare_invoke(loop);
 
   if (pGetQueuedCompletionStatusEx)
-    uv__poll(loop, uv_backend_timeout(loop));
+    uv__poll(loop, timeout);
   else
-    uv__poll_wine(loop, uv_backend_timeout(loop));
+    uv__poll_wine(loop, timeout);
 
   loop->round++;
   uv_update_time(loop);
