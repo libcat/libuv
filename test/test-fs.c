@@ -28,12 +28,8 @@
 #include <sys/stat.h>
 #include <limits.h> /* INT_MAX, PATH_MAX, IOV_MAX */
 
-/* FIXME we shouldn't need to branch in this file */
-#if defined(__unix__) || defined(__POSIX__) || \
-    defined(__APPLE__) || defined(__sun) || \
-    defined(_AIX) || defined(__MVS__) || \
-    defined(__HAIKU__)
-#include <unistd.h> /* unlink, rmdir, etc. */
+#ifndef _WIN32
+# include <unistd.h> /* unlink, rmdir, etc. */
 #else
 # include <winioctl.h>
 # include <direct.h>
@@ -1290,7 +1286,10 @@ TEST_IMPL(fs_mkstemp) {
   ASSERT(strcmp(mkstemp_req1.path, mkstemp_req2.path) != 0);
 
   /* invalid template returns EINVAL */
-  ASSERT(uv_fs_mkstemp(NULL, &mkstemp_req3, "test_file", NULL) == UV_EINVAL);
+  ASSERT_EQ(UV_EINVAL, uv_fs_mkstemp(NULL, &mkstemp_req3, "test_file", NULL));
+
+  /* Make sure that path is empty string */
+  ASSERT_EQ(0, strlen(mkstemp_req3.path));
 
   /* We can write to the opened file */
   iov = uv_buf_init(test_buf, sizeof(test_buf));
@@ -2838,6 +2837,9 @@ TEST_IMPL(fs_scandir_non_existent_dir) {
 }
 
 TEST_IMPL(fs_scandir_file) {
+#if defined(__ASAN__)
+  RETURN_SKIP("Test does not currently work in ASAN");
+#endif
   const char* path;
   int r;
 
@@ -3084,6 +3086,9 @@ static void fs_read_bufs(int add_flags) {
   uv_fs_req_cleanup(&close_req);
 }
 TEST_IMPL(fs_read_bufs) {
+#if defined(__ASAN__)
+  RETURN_SKIP("Test does not currently work in ASAN");
+#endif
   fs_read_bufs(0);
   fs_read_bufs(UV_FS_O_FILEMAP);
 
@@ -3885,7 +3890,7 @@ TEST_IMPL(fs_file_pos_after_op_with_offset) {
 }
 
 #ifdef _WIN32
-static void fs_file_pos_common() {
+static void fs_file_pos_common(void) {
   int r;
 
   iov = uv_buf_init("abc", 3);
