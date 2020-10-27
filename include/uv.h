@@ -27,6 +27,15 @@
 extern "C" {
 #endif
 
+#ifdef HAVE_LIBCAT
+#ifdef CAT_SHARED_BUILD
+#define BUILDING_UV_SHARED 1
+#endif
+#ifdef CAT_SHARED_USE
+#define USING_UV_SHARED    1
+#endif
+#endif
+
 #if defined(BUILDING_UV_SHARED) && defined(USING_UV_SHARED)
 #error "Define either BUILDING_UV_SHARED or USING_UV_SHARED, not both."
 #endif
