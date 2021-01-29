@@ -753,8 +753,10 @@ void uv_pipe_connect_ex(uv_connect_t* req, uv_pipe_t* handle,
     pipe_fname = (char *) uv__malloc(name_length + 1);
     if (pipe_fname == NULL)
       pipe_fname = (char *) "";
-    else
+    else {
+      memcpy(pipe_fname, name, name_length);
       pipe_fname[name_length] = '\0';
+    }
 
     uv_pipe_connect(req, handle, name, cb);
 
