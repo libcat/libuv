@@ -196,7 +196,7 @@ int uv_try_write2(uv_stream_t* stream,
     if (send_handle != NULL)
         return UV_EAGAIN;
 
-    return uv_try_write(bufs, nbufs, send_handle);
+    return uv_try_write(stream, bufs, nbufs);
 }
 #endif
 
