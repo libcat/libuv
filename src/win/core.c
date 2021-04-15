@@ -681,6 +681,8 @@ int uv_crun(uv_loop_t *loop) {
   else
     uv__poll_wine(loop, timeout);
 
+  uv__metrics_update_idle_time(loop);
+
   loop->round++;
   uv_update_time(loop);
   uv__run_timers(loop);

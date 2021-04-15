@@ -441,6 +441,8 @@ int uv_crun(uv_loop_t* loop) {
 
   uv__io_poll(loop, timeout);
 
+  uv__metrics_update_idle_time(loop);
+
   loop->round++;
   uv__update_time(loop);
   uv__run_timers(loop);
@@ -1601,7 +1603,7 @@ int uv__search_path(const char* prog, char* buf, size_t* buflen) {
     buf[*buflen] = '\0';
 
     return 0;
-  } 
+  }
 
   /* Case iii). Search PATH environment variable */
   cloned_path = NULL;
