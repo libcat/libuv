@@ -424,33 +424,34 @@ int uv_run(uv_loop_t* loop, uv_run_mode mode) {
 
 #ifdef HAVE_LIBCAT
 int uv_crun(uv_loop_t* loop) {
-  int timeout;
+  int r;
 
-  if (!uv__loop_alive(loop)) {
+  r = uv__loop_alive(loop);
+  if (!r)
     uv__update_time(loop);
-    return 0;
+
+  while (r != 0 && loop->stop_flag == 0) {
+    uv__run_pending(loop);
+    uv__run_idle(loop);
+    uv__run_prepare(loop);
+
+    uv__io_poll(loop, uv_backend_timeout(loop));
+    uv__metrics_update_idle_time(loop);
+
+    uv__run_check(loop);
+    uv__run_closing_handles(loop);
+
+    loop->round++;
+    uv__update_time(loop);
+    uv__run_timers(loop);
+
+    r = uv__loop_alive(loop);
   }
 
-  if (uv__run_pending(loop)) {
-    timeout = 0;
-  } else {
-    timeout = uv_backend_timeout(loop);
-  }
-  uv__run_idle(loop);
-  uv__run_prepare(loop);
+  if (loop->stop_flag != 0)
+    loop->stop_flag = 0;
 
-  uv__io_poll(loop, timeout);
-
-  uv__metrics_update_idle_time(loop);
-
-  loop->round++;
-  uv__update_time(loop);
-  uv__run_timers(loop);
-
-  uv__run_check(loop);
-  uv__run_closing_handles(loop);
-
-  return uv__loop_alive(loop);
+  return r;
 }
 #endif
 
