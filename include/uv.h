@@ -309,10 +309,12 @@ UV_EXTERN int uv_loop_configure(uv_loop_t* loop, uv_loop_option option, ...);
 UV_EXTERN int uv_loop_fork(uv_loop_t* loop);
 
 UV_EXTERN int uv_run(uv_loop_t*, uv_run_mode mode);
-#ifdef HAVE_LIBCAT
-UV_EXTERN int uv_crun(uv_loop_t* loop);
-#endif
 UV_EXTERN void uv_stop(uv_loop_t*);
+
+#ifdef HAVE_LIBCAT
+typedef int (*uv_defer_callback_t)(uv_loop_t* loop);
+UV_EXTERN int uv_crun(uv_loop_t* loop, uv_defer_callback_t defer);
+#endif
 
 UV_EXTERN void uv_ref(uv_handle_t*);
 UV_EXTERN void uv_unref(uv_handle_t*);
