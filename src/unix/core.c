@@ -616,7 +616,9 @@ int uv__close_nocheckstdio(int fd) {
 
 
 int uv__close(int fd) {
+#ifndef HAVE_LIBCAT /* STDIO fds maybe reused after they were closed */
   assert(fd > STDERR_FILENO);  /* Catch stdio close bugs. */
+#endif
 #if defined(__MVS__)
   SAVE_ERRNO(epoll_file_close(fd));
 #endif
