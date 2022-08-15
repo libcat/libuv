@@ -81,7 +81,8 @@ extern char** environ;
 #endif
 
 #if defined(__MVS__)
-#include <sys/ioctl.h>
+# include <sys/ioctl.h>
+# include "zos-sys-info.h"
 #endif
 
 #if defined(__linux__)
@@ -160,6 +161,15 @@ void uv_close(uv_handle_t* handle, uv_close_cb close_cb) {
 
   case UV_FS_EVENT:
     uv__fs_event_close((uv_fs_event_t*)handle);
+#if defined(__sun) || defined(__MVS__)
+    /*
+     * On Solaris, illumos, and z/OS we will not be able to dissociate the
+     * watcher for an event which is pending delivery, so we cannot always call
+     * uv__make_close_pending() straight away. The backend will call the
+     * function once the event has cleared.
+     */
+    return;
+#endif
     break;
 
   case UV_POLL:
@@ -394,6 +404,11 @@ int uv_run(uv_loop_t* loop, uv_run_mode mode) {
       timeout = uv__backend_timeout(loop);
 
     uv__io_poll(loop, timeout);
+
+    /* Process immediate callbacks (e.g. write_cb) a small fixed number of
+     * times to avoid loop starvation.*/
+    for (r = 0; r < 8 && !QUEUE_EMPTY(&loop->pending_queue); r++)
+      uv__run_pending(loop);
 
     /* Run one final update on the provider_idle_time in case uv__io_poll
      * returned because the timeout expired, but no events were received. This
@@ -699,28 +714,23 @@ int uv__cloexec(int fd, int set) {
 
 
 ssize_t uv__recvmsg(int fd, struct msghdr* msg, int flags) {
-  struct cmsghdr* cmsg;
+#if defined(__ANDROID__)   || \
+    defined(__DragonFly__) || \
+    defined(__FreeBSD__)   || \
+    defined(__NetBSD__)    || \
+    defined(__OpenBSD__)   || \
+    defined(__linux__)
   ssize_t rc;
+  rc = recvmsg(fd, msg, flags | MSG_CMSG_CLOEXEC);
+  if (rc == -1)
+    return UV__ERR(errno);
+  return rc;
+#else
+  struct cmsghdr* cmsg;
   int* pfd;
   int* end;
-#if defined(__linux__)
-  static int no_msg_cmsg_cloexec;
-  if (0 == uv__load_relaxed(&no_msg_cmsg_cloexec)) {
-    rc = recvmsg(fd, msg, flags | 0x40000000);  /* MSG_CMSG_CLOEXEC */
-    if (rc != -1)
-      return rc;
-    if (errno != EINVAL)
-      return UV__ERR(errno);
-    rc = recvmsg(fd, msg, flags);
-    if (rc == -1)
-      return UV__ERR(errno);
-    uv__store_relaxed(&no_msg_cmsg_cloexec, 1);
-  } else {
-    rc = recvmsg(fd, msg, flags);
-  }
-#else
+  ssize_t rc;
   rc = recvmsg(fd, msg, flags);
-#endif
   if (rc == -1)
     return UV__ERR(errno);
   if (msg->msg_controllen == 0)
@@ -733,6 +743,7 @@ ssize_t uv__recvmsg(int fd, struct msghdr* msg, int flags) {
            pfd += 1)
         uv__cloexec(*pfd, 1);
   return rc;
+#endif
 }
 
 
@@ -897,11 +908,6 @@ void uv__io_init(uv__io_t* w, uv__io_cb cb, int fd) {
   w->fd = fd;
   w->events = 0;
   w->pevents = 0;
-
-#if defined(UV_HAVE_KQUEUE)
-  w->rcount = 0;
-  w->wcount = 0;
-#endif /* defined(UV_HAVE_KQUEUE) */
 }
 
 
@@ -1678,7 +1684,13 @@ unsigned int uv_available_parallelism(void) {
 
   return (unsigned) rc;
 #elif defined(__MVS__)
-  return 1;  /* TODO(bnoordhuis) Read from CSD_NUMBER_ONLINE_CPUS? */
+  int rc;
+
+  rc = __get_num_online_cpus();
+  if (rc < 1)
+    rc = 1;
+
+  return (unsigned) rc;
 #else  /* __linux__ */
   long rc;
 
