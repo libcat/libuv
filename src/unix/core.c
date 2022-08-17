@@ -449,34 +449,36 @@ int uv_run(uv_loop_t* loop, uv_run_mode mode) {
 
 
 #ifdef HAVE_LIBCAT
-int uv_crun(uv_loop_t* loop, uv_defer_callback_t defer) {
-  int r, d;
+int uv_crun(uv_loop_t* loop, const uv_run_options_t *options) {
+  int r;
 
-  r = uv__loop_alive(loop);
-  d = 1;
-  uv__update_time(loop);
-
-  while (r || d) {
-    if (r) {
-      uv__run_pending(loop);
-      uv__run_idle(loop);
-      uv__run_prepare(loop);
-
-      uv__io_poll(loop, uv_backend_timeout(loop));
-      uv__metrics_update_idle_time(loop);
-
-      uv__run_check(loop);
-      uv__run_closing_handles(loop);
-    }
-
-    loop->round++;
+  r = uv__loop_alive(loop) ||
+      (options->alive_cb && options->alive_cb(loop));
+  if (!r)
     uv__update_time(loop);
-    d = defer(loop);
 
-    if (r)
-      uv__run_timers(loop);
+  while (r) {
+    loop->round++;
+    uv__run_pending(loop);
+    uv__run_idle(loop);
+    uv__run_prepare(loop);
 
-    r = uv__loop_alive(loop) && !loop->stop_flag;
+    uv__io_poll(loop, uv_backend_timeout(loop));
+    uv__metrics_update_idle_time(loop);
+
+    uv__run_check(loop);
+    uv__run_closing_handles(loop);
+
+    uv__update_time(loop);
+
+    if (options->defer_cb)
+      options->defer_cb(loop);
+    uv__run_timers(loop);
+
+    r = !loop->stop_flag && (
+      uv__loop_alive(loop) ||
+      (options->alive_cb && options->alive_cb(loop))
+    );
   }
 
   if (loop->stop_flag)
