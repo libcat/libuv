@@ -120,6 +120,7 @@ endif  # WINNT
 EXTRA_DIST = test/fixtures/empty_file \
              test/fixtures/load_error.node \
              test/fixtures/lorem_ipsum.txt \
+             test/fixtures/one_file/one_file \
              include \
              docs \
              img \
@@ -276,6 +277,7 @@ test_run_tests_SOURCES = test/blackhole-server.c \
                          test/test-tcp-writealot.c \
                          test/test-tcp-write-fail.c \
                          test/test-tcp-try-write.c \
+                         test/test-tcp-write-in-a-row.c \
                          test/test-tcp-try-write-error.c \
                          test/test-tcp-write-queue-order.c \
                          test/test-test-macros.c \
@@ -471,15 +473,11 @@ endif
 if LINUX
 uvinclude_HEADERS += include/uv/linux.h
 libuv_la_CFLAGS += -D_GNU_SOURCE
-libuv_la_SOURCES += src/unix/linux-core.c \
-                    src/unix/linux-inotify.c \
-                    src/unix/linux-syscalls.c \
-                    src/unix/linux-syscalls.h \
+libuv_la_SOURCES += src/unix/linux.c \
                     src/unix/procfs-exepath.c \
                     src/unix/proctitle.c \
                     src/unix/random-getrandom.c \
-                    src/unix/random-sysctl-linux.c \
-                    src/unix/epoll.c
+                    src/unix/random-sysctl-linux.c
 test_run_tests_LDFLAGS += -lutil
 endif
 
