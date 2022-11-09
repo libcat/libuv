@@ -283,6 +283,7 @@ test_run_tests_SOURCES = test/blackhole-server.c \
                          test/test-test-macros.c \
                          test/test-thread-equal.c \
                          test/test-thread.c \
+                         test/test-thread-affinity.c \
                          test/test-threadpool-cancel.c \
                          test/test-threadpool.c \
                          test/test-timer-again.c \
@@ -313,6 +314,7 @@ test_run_tests_SOURCES = test/blackhole-server.c \
                          test/test-udp-sendmmsg-error.c \
                          test/test-udp-send-unreachable.c \
                          test/test-udp-try-send.c \
+                         test/test-udp-recv-in-a-row.c \
                          test/test-uname.c \
                          test/test-walk-handles.c \
                          test/test-watcher-cross-stop.c

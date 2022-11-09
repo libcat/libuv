@@ -365,6 +365,13 @@ API
 
     Frees the `cpu_infos` array previously allocated with :c:func:`uv_cpu_info`.
 
+.. c:function:: int uv_cpumask_size(void)
+
+    Returns the maximum size of the mask used for process/thread affinities,
+    or ``UV_ENOTSUP`` if affinities are not supported on the current platform.
+
+    .. versionadded:: 1.45.0
+
 .. c:function:: int uv_interface_addresses(uv_interface_address_t** addresses, int* count)
 
     Gets address information about the network interfaces on the system. An
@@ -544,11 +551,13 @@ API
 
 .. c:function:: uint64_t uv_get_free_memory(void)
 
-    Gets the amount of free memory available in the system, as reported by the kernel (in bytes).
+    Gets the amount of free memory available in the system, as reported by
+    the kernel (in bytes). Returns 0 when unknown.
 
 .. c:function:: uint64_t uv_get_total_memory(void)
 
     Gets the total amount of physical memory in the system (in bytes).
+    Returns 0 when unknown.
 
 .. c:function:: uint64_t uv_get_constrained_memory(void)
 

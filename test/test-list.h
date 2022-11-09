@@ -185,6 +185,7 @@ TEST_DECLARE   (udp_open)
 TEST_DECLARE   (udp_open_twice)
 TEST_DECLARE   (udp_open_bound)
 TEST_DECLARE   (udp_open_connect)
+TEST_DECLARE   (udp_recv_in_a_row)
 #ifndef _WIN32
 TEST_DECLARE   (udp_send_unix)
 #endif
@@ -450,6 +451,7 @@ TEST_DECLARE   (thread_rwlock)
 TEST_DECLARE   (thread_rwlock_trylock)
 TEST_DECLARE   (thread_create)
 TEST_DECLARE   (thread_equal)
+TEST_DECLARE   (thread_affinity)
 TEST_DECLARE   (dlerror)
 #if (defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))) && \
     !defined(__sun)
@@ -769,6 +771,7 @@ TASK_LIST_START
   TEST_ENTRY  (udp_multicast_ttl)
   TEST_ENTRY  (udp_sendmmsg_error)
   TEST_ENTRY  (udp_try_send)
+  TEST_ENTRY  (udp_recv_in_a_row)
 
   TEST_ENTRY  (udp_open)
   TEST_ENTRY  (udp_open_twice)
@@ -1122,6 +1125,7 @@ TASK_LIST_START
   TEST_ENTRY  (thread_rwlock_trylock)
   TEST_ENTRY  (thread_create)
   TEST_ENTRY  (thread_equal)
+  TEST_ENTRY  (thread_affinity)
   TEST_ENTRY  (dlerror)
   TEST_ENTRY  (ip4_addr)
   TEST_ENTRY  (ip6_addr_link_local)
