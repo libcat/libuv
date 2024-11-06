@@ -991,9 +991,6 @@ UV_EXTERN int uv_pipe_bind2(uv_pipe_t* handle,
                             const char* name,
                             size_t namelen,
                             unsigned int flags);
-#ifdef HAVE_LIBCAT
-UV_EXTERN int uv_pipe_bind_ex(uv_pipe_t* handle, const char* name, size_t name_length);
-#endif
 UV_EXTERN void uv_pipe_connect(uv_connect_t* req,
                                uv_pipe_t* handle,
                                const char* name,
@@ -1004,13 +1001,6 @@ UV_EXTERN int uv_pipe_connect2(uv_connect_t* req,
                                size_t namelen,
                                unsigned int flags,
                                uv_connect_cb cb);
-#ifdef HAVE_LIBCAT
-UV_EXTERN void uv_pipe_connect_ex(uv_connect_t* req,
-                               uv_pipe_t* handle,
-                               const char* name,
-                               size_t name_length,
-                               uv_connect_cb cb);
-#endif
 UV_EXTERN int uv_pipe_getsockname(const uv_pipe_t* handle,
                                   char* buffer,
                                   size_t* size);
