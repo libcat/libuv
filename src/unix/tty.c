@@ -360,9 +360,15 @@ void uv__tty_close(uv_tty_t* handle) {
     goto done;
 
   /* This is used for uv_tty_reset_mode() */
+#ifdef HAVE_LIBCAT
+  do
+    expected = 0;
+  while (!hat_atomic_int32_compare_exchange_strong(&termios_spinlock, &expected, 1));
+#else
   do
     expected = 0;
   while (!atomic_compare_exchange_strong(&termios_spinlock, &expected, 1));
+#endif
 
   if (fd == orig_termios_fd) {
     /* XXX(bnoordhuis) the tcsetattr is probably wrong when there are still
@@ -375,7 +381,11 @@ void uv__tty_close(uv_tty_t* handle) {
     orig_termios_fd = -1;
   }
 
+#ifdef HAVE_LIBCAT
+  hat_atomic_int32_store(&termios_spinlock, 0);
+#else
   atomic_store(&termios_spinlock, 0);
+#endif
 
 done:
   uv__stream_close((uv_stream_t*) handle);

@@ -2031,6 +2031,14 @@ unsigned int uv_available_parallelism(void) {
   return (unsigned) rc;
 }
 
+#ifdef HAVE_LIBCAT
+int uv__sock_reuseport(int fd) {
+    int on = 1;
+    if (setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &on, sizeof(on)))
+        return UV__ERR(errno);
+    return 0;
+}
+#else
 int uv__sock_reuseport(int fd) {
   int on = 1;
 #if defined(__FreeBSD__) && __FreeBSD__ >= 12 && defined(SO_REUSEPORT_LB)
@@ -2073,3 +2081,4 @@ int uv__sock_reuseport(int fd) {
 
   return 0;
 }
+#endif /* HAVE_LIBCAT */

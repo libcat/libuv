@@ -260,6 +260,8 @@ struct uv__queue {
   XX(EILSEQ, "Illegal byte sequence")                                         \
   XX(ESOCKTNOSUPPORT, "Socket type not supported")                            \
   XX(ENODATA, "No data available")                                            \
+  XX(EUNATCH, "Protocol driver not attached")                                 \
+  XX(ENOEXEC, "Exec format error")                                            \
   XX(ESTALE, "Stale file handle")                                             \
 
 #endif /* HAVE_LIBCAT */                                      \
@@ -797,10 +799,6 @@ enum uv_udp_flags {
    * This flag is no-op on platforms other than Linux.
    */
   UV_UDP_LINUX_RECVERR = 32,
-#ifdef HAVE_LIBCAT
-  /* Unix only (or ignored) */
-  UV_UDP_REUSEPORT = 64,
-#endif
   /*
    * Indicates if SO_REUSEPORT will be set when binding the handle.
    * This sets the SO_REUSEPORT socket option on supported platforms.

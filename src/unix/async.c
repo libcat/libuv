@@ -143,7 +143,11 @@ static void uv__async_spin(uv_async_t* handle) {
 
   /* Set the pending flag first, so no new events will be added by other
    * threads after this function returns. */
+#ifdef HAVE_LIBCAT
+  hat_atomic_int32_store(pending, 1);
+#else
   atomic_store(pending, 1);
+#endif
 
   for (;;) {
     /* 997 is not completely chosen at random. It's a prime number, acyclic by
