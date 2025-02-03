@@ -26,11 +26,7 @@
 #include "internal.h"
 
 #include <errno.h>
-#ifdef HAVE_LIBCAT
-#include "../hat_atomic.h"
-#else
 #include <stdatomic.h>
-#endif
 #include <stdio.h>  /* snprintf() */
 #include <assert.h>
 #include <stdlib.h>
@@ -56,11 +52,7 @@ int uv_async_init(uv_loop_t* loop, uv_async_t* handle, uv_async_cb async_cb) {
 
   uv__handle_init(loop, (uv_handle_t*)handle, UV_ASYNC);
   handle->async_cb = async_cb;
-#ifdef HAVE_LIBCAT
-  hat_atomic_int32_init((hat_atomic_int32_t *) &handle->pending, 0);
-#else
   handle->pending = 0;
-#endif
   handle->u.fd = 0; /* This will be used as a busy flag. */
 
   uv__queue_insert_tail(&loop->async_handles, &handle->queue);
@@ -71,51 +63,25 @@ int uv_async_init(uv_loop_t* loop, uv_async_t* handle, uv_async_cb async_cb) {
 
 
 int uv_async_send(uv_async_t* handle) {
-#ifdef HAVE_LIBCAT
-  hat_atomic_int32_t *pending;
-  hat_atomic_int32_t *busy;
-#else
   _Atomic int* pending;
   _Atomic int* busy;
-#endif
 
-#ifdef HAVE_LIBCAT
-  pending = (hat_atomic_int32_t *) &handle->pending;
-  busy = (hat_atomic_int32_t *) &handle->u.fd;
-#else
   pending = (_Atomic int*) &handle->pending;
   busy = (_Atomic int*) &handle->u.fd;
-#endif
 
   /* Do a cheap read first. */
-#ifdef HAVE_LIBCAT
-  if (hat_atomic_int32_load(pending) != 0)
-#else
   if (atomic_load_explicit(pending, memory_order_relaxed) != 0)
-#endif
     return 0;
 
   /* Set the loop to busy. */
-#ifdef HAVE_LIBCAT
-  hat_atomic_int32_fetch_add(busy, 1);
-#else
   atomic_fetch_add(busy, 1);
-#endif
 
   /* Wake up the other thread's event loop. */
-#ifdef HAVE_LIBCAT
-  if (hat_atomic_int32_exchange(pending, 1) == 0)
-#else
   if (atomic_exchange(pending, 1) == 0)
-#endif
     uv__async_send(handle->loop);
 
   /* Set the loop to not-busy. */
-#ifdef HAVE_LIBCAT
-  hat_atomic_int32_fetch_add(busy, -1);
-#else
   atomic_fetch_add(busy, -1);
-#endif
 
   return 0;
 }
@@ -124,41 +90,23 @@ int uv_async_send(uv_async_t* handle) {
 /* Wait for the busy flag to clear before closing.
  * Only call this from the event loop thread. */
 static void uv__async_spin(uv_async_t* handle) {
-#ifdef HAVE_LIBCAT
-  hat_atomic_int32_t *pending;
-  hat_atomic_int32_t *busy;
-#else
   _Atomic int* pending;
   _Atomic int* busy;
-#endif
   int i;
 
-#ifdef HAVE_LIBCAT
-  pending = (hat_atomic_int32_t *) &handle->pending;
-  busy = (hat_atomic_int32_t *) &handle->u.fd;
-#else
   pending = (_Atomic int*) &handle->pending;
   busy = (_Atomic int*) &handle->u.fd;
-#endif
 
   /* Set the pending flag first, so no new events will be added by other
    * threads after this function returns. */
-#ifdef HAVE_LIBCAT
-  hat_atomic_int32_store(pending, 1);
-#else
   atomic_store(pending, 1);
-#endif
 
   for (;;) {
     /* 997 is not completely chosen at random. It's a prime number, acyclic by
      * nature, and should therefore hopefully dampen sympathetic resonance.
      */
     for (i = 0; i < 997; i++) {
-#ifdef HAVE_LIBCAT
-      if (hat_atomic_int32_load(busy) == 0)
-#else
       if (atomic_load(busy) == 0)
-#endif
         return;
 
       /* Other thread is busy with this handle, spin until it's done. */
