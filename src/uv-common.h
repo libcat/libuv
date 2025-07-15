@@ -41,6 +41,10 @@
 # include <stdatomic.h>
 #endif
 
+#ifdef HAVE_LIBCAT
+# include "hat_atomic.h"
+#endif
+
 #if EDOM > 0
 # define UV__ERR(x) (-(x))
 #else
