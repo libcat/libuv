@@ -100,6 +100,7 @@ typedef void *hat_ptr_t;
 #define HAT_ATOMIC_COMMON_OPERATION_FUNCTIONS_MAP(XX) \
         XX(bool, uint8_t, 8,       char) \
         XX(ptr,  hat_ptr_t,  Pointer, PVOID) \
+        XX(uintptr, uintptr_t, Pointer, PVOID) \
 
 #define HAT_ATOMIC_NUMERIC_OPERATION_FUNCTIONS_MAP(XX) \
         XX(int8,   int8_t,   8,  char) \
@@ -110,6 +111,7 @@ typedef void *hat_ptr_t;
         XX(uint32, uint32_t, 32, long) \
         XX(int64,  int64_t,  64, __int64) \
         XX(uint64, uint64_t, 64, __int64) \
+        XX(clock, clock_t, 64, __int64) \
 
 # if defined(HAT_HAVE_GNUC_ATOMIC)
 # define __atomic_compare_exchange_strong(atomic, expected, desired) \
@@ -338,6 +340,20 @@ static hat_atomic_inline type_name_t hat_atomic_##name##_fetch_sub(hat_atomic_##
 
 HAT_ATOMIC_COMMON_OPERATION_FUNCTIONS_MAP(HAT_ATOMIC_COMMON_OPERATION_FUNCTIONS_GEN)
 HAT_ATOMIC_NUMERIC_OPERATION_FUNCTIONS_MAP(HAT_ATOMIC_OPERATION_FUNCTIONS_GEN)
+
+/* Static initialization macros for elegant variable declaration */
+#define HAT_ATOMIC_BOOL_INIT(val)     { .value = val }
+#define HAT_ATOMIC_PTR_INIT(val)      { .value = val }
+#define HAT_ATOMIC_UINTPTR_INIT(val)  { .value = val }
+#define HAT_ATOMIC_INT8_INIT(val)     { .value = val }
+#define HAT_ATOMIC_UINT8_INIT(val)    { .value = val }
+#define HAT_ATOMIC_INT16_INIT(val)    { .value = val }
+#define HAT_ATOMIC_UINT16_INIT(val)   { .value = val }
+#define HAT_ATOMIC_INT32_INIT(val)    { .value = val }
+#define HAT_ATOMIC_UINT32_INIT(val)   { .value = val }
+#define HAT_ATOMIC_INT64_INIT(val)    { .value = val }
+#define HAT_ATOMIC_UINT64_INIT(val)   { .value = val }
+#define HAT_ATOMIC_CLOCK_INIT(val)    { .value = val }
 
 #ifdef __cplusplus
 }
