@@ -174,7 +174,6 @@ struct uv__queue {
   XX(ENODATA, "no data available")                                            \
   XX(EUNATCH, "protocol driver not attached")                                 \
   XX(ENOEXEC, "exec format error")                                            \
-  XX(ESTALE, "stale file handle")                                             \
 
 #ifdef HAVE_LIBCAT
 #define UV_ERRNO_MAP2(XX)                                                     \
@@ -263,9 +262,8 @@ struct uv__queue {
   XX(ENODATA, "No data available")                                            \
   XX(EUNATCH, "Protocol driver not attached")                                 \
   XX(ENOEXEC, "Exec format error")                                            \
-  XX(ESTALE, "Stale file handle")                                             \
 
-#endif /* HAVE_LIBCAT */                                      \
+#endif /* HAVE_LIBCAT */
 
 #define UV_HANDLE_TYPE_MAP(XX)                                                \
   XX(ASYNC, async)                                                            \
