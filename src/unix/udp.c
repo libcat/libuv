@@ -409,18 +409,6 @@ int uv__udp_bind(uv_udp_t* handle,
       return err;
   }
 
-#ifdef HAVE_LIBCAT
-#ifdef SO_REUSEPORT
-  if (flags & UV_UDP_REUSEPORT) {
-      yes = 1;
-      if (setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &yes, sizeof(yes)) == -1) {
-        err = UV__ERR(errno);
-        return err;
-      }
-  }
-#endif
-#endif
-
   if (flags & UV_UDP_IPV6ONLY) {
 #ifdef IPV6_V6ONLY
     yes = 1;

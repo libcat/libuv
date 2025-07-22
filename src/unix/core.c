@@ -2132,14 +2132,6 @@ unsigned int uv_available_parallelism(void) {
   return (unsigned) rc;
 }
 
-#ifdef HAVE_LIBCAT
-int uv__sock_reuseport(int fd) {
-    int on = 1;
-    if (setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &on, sizeof(on)))
-        return UV__ERR(errno);
-    return 0;
-}
-#else
 int uv__sock_reuseport(int fd) {
   int on = 1;
 #if defined(__FreeBSD__) && __FreeBSD__ >= 12 && defined(SO_REUSEPORT_LB)
@@ -2173,13 +2165,17 @@ int uv__sock_reuseport(int fd) {
 #else
   (void) (fd);
   (void) (on);
+# ifdef HAVE_LIBCAT
+  /* aovid bind failed due to unsupport */
+  return 0;
+# else
   /* SO_REUSEPORTs do not have the capability of load balancing on platforms
    * other than those mentioned above. The semantics are completely different,
    * therefore we shouldn't enable it, but fail this operation to indicate that
    * UV_[TCP/UDP]_REUSEPORT is not supported on these platforms. */
   return UV_ENOTSUP;
+# endif /* HAVE_LIBCAT */
 #endif
 
   return 0;
 }
-#endif /* HAVE_LIBCAT */
