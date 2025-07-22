@@ -524,7 +524,15 @@ int uv_crun(uv_loop_t* loop) {
     uv__run_idle(loop);
     uv__run_prepare(loop);
 
+    uv__metrics_inc_loop_count(loop);
+
     uv__io_poll(loop, uv_backend_timeout(loop));
+
+    /* Process immediate callbacks (e.g. write_cb) a small fixed number of
+     * times to avoid loop starvation.*/
+    for (r = 0; r < 8 && !uv__queue_empty(&loop->pending_queue); r++)
+      uv__run_pending(loop);
+
     uv__metrics_update_idle_time(loop);
 
     uv__run_check(loop);
