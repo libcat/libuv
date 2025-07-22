@@ -22,6 +22,12 @@
 extern "C" {
 #endif
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+#include <stdint.h>
+#include <time.h>
+
 #ifndef __has_feature
 # define __has_feature(x) 0
 #endif
@@ -49,13 +55,13 @@ typedef void *hat_ptr_t;
 
 /* TODO: Fixed implementation selection
  * or provided C API for external use. */
-#if __has_feature(c_atomic)
+#if __has_feature(c_atomic) && defined(__clang__)
 # define HAT_HAVE_C11_ATOMIC 1
-#elif defined(__clang__) || HAT_GCC_VERSION >= 4007
+#elif HAT_GCC_VERSION >= 4007
 # define HAT_HAVE_GNUC_ATOMIC 1
 #elif defined(__GNUC__)
 # define HAT_HAVE_SYNC_ATOMIC 1
-#elif defined(HAT_OS_WIN)
+#elif defined(_MSC_VER)
 # define HAT_HAVE_INTERLOCK_ATOMIC 1
 #else
 # error "No atomics support detected, that's terrible!"
@@ -223,7 +229,7 @@ static hat_atomic_inline type_name_t hat_atomic_##name##_exchange(hat_atomic_##n
         return ret; \
     }) \
     HAT_ATOMIC_INTERLOCK_CASE({ \
-        return _InterlockedExchange##interlocked_suffix(&atomic->value, (interlocked_type_t) desired); \
+        return (type_name_t) _InterlockedExchange##interlocked_suffix(&atomic->value, (interlocked_type_t) desired); \
     }) \
     HAT_ATOMIC_SYNC_CASE({ \
         return __sync_val_compare_and_swap(&atomic->value, atomic->value, desired); \
