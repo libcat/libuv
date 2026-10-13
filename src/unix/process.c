@@ -1197,6 +1197,12 @@ int uv_spawn(uv_loop_t* loop,
   if (pipes != pipes_storage)
     uv__free(pipes);
 
+  /* exec failed, so there is no child to reap and the handle must not stay in the
+   * loop handle queue: the caller is expected to close or free the handle, and a
+   * handle that is still queued would be removed a second time when it is closed */
+  if (exec_errorno != 0)
+    uv__queue_remove(&process->handle_queue);
+
   return exec_errorno;
 
 error:
