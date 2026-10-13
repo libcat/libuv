@@ -28,12 +28,14 @@
 #else /*  Unix */
 # include <fcntl.h>
 # include <unistd.h>
-# if defined(__linux__) && !defined(__ANDROID__)
+# if defined(__linux__) && !defined(__ANDROID__) || defined(__GNU__)
 #  include <pty.h>
 # elif defined(__OpenBSD__) || defined(__NetBSD__) || defined(__APPLE__)
 #  include <util.h>
 # elif defined(__FreeBSD__) || defined(__DragonFly__)
 #  include <libutil.h>
+# elif defined(__HAIKU__)
+#  include <pty.h>
 # endif
 #endif
 
@@ -118,6 +120,9 @@ TEST_IMPL(tty) {
 
   ASSERT_GT(width, 0);
   ASSERT_GT(height, 0);
+
+  r = uv_tty_set_mode(&tty_in, (uv_tty_mode_t) -1);
+  ASSERT_EQ(r, UV_EINVAL);
 
   /* Turn on raw mode. */
   r = uv_tty_set_mode(&tty_in, UV_TTY_MODE_RAW);
@@ -339,6 +344,115 @@ TEST_IMPL(tty_raw_cancel) {
   MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
+
+static int tty_ctrl_z_read_cb_calls;
+static HANDLE tty_ctrl_z_conin;
+
+static void tty_ctrl_z_write_key(WORD virtual_key_code,
+                                 WCHAR unicode_char,
+                                 DWORD control_key_state) {
+  INPUT_RECORD record;
+  DWORD written;
+
+  record.EventType = KEY_EVENT;
+  record.Event.KeyEvent.bKeyDown = TRUE;
+  record.Event.KeyEvent.wRepeatCount = 1;
+  record.Event.KeyEvent.wVirtualKeyCode = virtual_key_code;
+  record.Event.KeyEvent.wVirtualScanCode =
+      MapVirtualKeyW(virtual_key_code, MAPVK_VK_TO_VSC);
+  record.Event.KeyEvent.uChar.UnicodeChar = unicode_char;
+  record.Event.KeyEvent.dwControlKeyState = control_key_state;
+
+  ASSERT(WriteConsoleInputW(tty_ctrl_z_conin, &record, 1, &written));
+  ASSERT_EQ(1, written);
+}
+
+static void tty_ctrl_z_read(uv_stream_t* tty_in,
+                            ssize_t nread,
+                            const uv_buf_t* buf) {
+  free(buf->base);
+
+  switch (++tty_ctrl_z_read_cb_calls) {
+  case 1:
+    ASSERT_EQ(UV_EOF, nread);
+    ASSERT(!uv_is_active((uv_handle_t*) tty_in));
+
+    ASSERT_OK(uv_read_start(tty_in, tty_raw_alloc, tty_ctrl_z_read));
+    ASSERT(uv_is_active((uv_handle_t*) tty_in));
+
+    tty_ctrl_z_write_key('X', L'x', 0);
+    tty_ctrl_z_write_key(VK_RETURN, L'\r', 0);
+    break;
+
+  case 2:
+    ASSERT_GT(nread, 0);
+    uv_close((uv_handle_t*) tty_in, NULL);
+    break;
+
+  default:
+    ASSERT(0 && "unexpected read callback");
+  }
+}
+
+TEST_IMPL(tty_ctrl_z_eof) {
+  int r;
+  int ttyin_fd;
+  uv_tty_t tty_in;
+  uv_loop_t* loop = uv_default_loop();
+  HANDLE handle;
+
+  /* Make sure we have an FD that refers to a tty */
+  handle = CreateFileA("conin$",
+                       GENERIC_READ | GENERIC_WRITE,
+                       FILE_SHARE_READ | FILE_SHARE_WRITE,
+                       NULL,
+                       OPEN_EXISTING,
+                       FILE_ATTRIBUTE_NORMAL,
+                       NULL);
+  ASSERT_PTR_NE(handle, INVALID_HANDLE_VALUE);
+  ttyin_fd = _open_osfhandle((intptr_t) handle, 0);
+  ASSERT_GE(ttyin_fd, 0);
+  ASSERT_EQ(UV_TTY, uv_guess_handle(ttyin_fd));
+  tty_ctrl_z_conin = handle;
+
+  r = uv_tty_init(loop, &tty_in, ttyin_fd, 1);  /* Readable. */
+  ASSERT_OK(r);
+
+  /* Line-buffered mode, i.e. the ReadConsoleW() code path. */
+  r = uv_tty_set_mode(&tty_in, UV_TTY_MODE_NORMAL);
+  ASSERT_OK(r);
+
+  r = uv_read_start((uv_stream_t*) &tty_in, tty_raw_alloc, tty_ctrl_z_read);
+  ASSERT_OK(r);
+
+  /* Give uv_tty_line_read_thread time to block on ReadConsoleW */
+  Sleep(100);
+
+  tty_ctrl_z_write_key('Z', 0x1a, LEFT_CTRL_PRESSED);
+
+  /* ReadConsoleW() only returns once the line is committed. */
+  tty_ctrl_z_write_key(VK_RETURN, L'\r', 0);
+
+  uv_run(loop, UV_RUN_DEFAULT);
+
+  ASSERT_EQ(2, tty_ctrl_z_read_cb_calls);
+
+  /* uv_close() shut the tty fd, so reopen to clean up. Other tests share this
+   * console and must not see input this test left behind. */
+  handle = CreateFileA("conin$",
+                       GENERIC_READ | GENERIC_WRITE,
+                       FILE_SHARE_READ | FILE_SHARE_WRITE,
+                       NULL,
+                       OPEN_EXISTING,
+                       FILE_ATTRIBUTE_NORMAL,
+                       NULL);
+  ASSERT_PTR_NE(handle, INVALID_HANDLE_VALUE);
+  ASSERT(FlushConsoleInputBuffer(handle));
+  ASSERT(CloseHandle(handle));
+
+  MAKE_VALGRIND_HAPPY(loop);
+  return 0;
+}
 #endif
 
 
@@ -421,10 +535,6 @@ TEST_IMPL(tty_pty) {
 #if defined(__QEMU__)
   RETURN_SKIP("Test does not currently work in QEMU");
 #endif
-#if defined(__ASAN__)
-  RETURN_SKIP("Test does not currently work in ASAN");
-#endif
-
 #if defined(__APPLE__)                            || \
     defined(__DragonFly__)                        || \
     defined(__FreeBSD__)                          || \
@@ -432,22 +542,24 @@ TEST_IMPL(tty_pty) {
     defined(__NetBSD__)                           || \
     defined(__OpenBSD__)
   int master_fd, slave_fd, r;
-  struct winsize w;
   uv_loop_t loop;
   uv_tty_t master_tty, slave_tty;
 
-  ASSERT_OK(uv_loop_init(&loop));
-
-  r = openpty(&master_fd, &slave_fd, NULL, NULL, &w);
+  r = openpty(&master_fd, &slave_fd, NULL, NULL, NULL);
   if (r != 0)
     RETURN_SKIP("No pty available, skipping.");
 
+  ASSERT_OK(uv_loop_init(&loop));
   ASSERT_OK(uv_tty_init(&loop, &slave_tty, slave_fd, 0));
   ASSERT_OK(uv_tty_init(&loop, &master_tty, master_fd, 0));
   ASSERT(uv_is_readable((uv_stream_t*) &slave_tty));
   ASSERT(uv_is_writable((uv_stream_t*) &slave_tty));
   ASSERT(uv_is_readable((uv_stream_t*) &master_tty));
   ASSERT(uv_is_writable((uv_stream_t*) &master_tty));
+
+  r = uv_tty_set_mode(&slave_tty, (uv_tty_mode_t) -1);
+  ASSERT_EQ(r, UV_EINVAL);
+
   /* Check if the file descriptor was reopened. If it is,
    * UV_HANDLE_BLOCKING_WRITES (value 0x100000) isn't set on flags.
    */
@@ -463,6 +575,82 @@ TEST_IMPL(tty_pty) {
   ASSERT_OK(uv_run(&loop, UV_RUN_DEFAULT));
 
   MAKE_VALGRIND_HAPPY(&loop);
+#endif
+  return 0;
+}
+
+#if !defined(__ANDROID__) && !defined(_WIN32)
+static int tty_pty_partial_read_count;
+
+static void tty_pty_partial_feeder(void *arg) {
+  static char buf[1<<13];
+  ssize_t n;
+  ssize_t r;
+  int fd;
+  int i;
+
+  fd = *(int *)arg;
+  memset(buf, 'x', sizeof(buf));
+  for (i = 0; i < 8; i++) {
+    for (n = 0; n < (int) sizeof(buf); n += r) {
+      do
+        r = write(fd, &buf[n], sizeof(buf) - n);
+      while (r == -1 && errno == EINTR);
+      ASSERT_GT(r, 0);
+    }
+  }
+  ASSERT_OK(close(fd));
+}
+
+static void tty_pty_partial_alloc_cb(uv_handle_t* handle,
+                                     size_t suggested_size,
+                                     uv_buf_t *buf) {
+  static char slab[1<<16];
+  *buf = uv_buf_init(slab, sizeof(slab));
+}
+
+static void tty_pty_partial_read_cb(uv_stream_t* stream,
+                                    ssize_t nread,
+                                    const uv_buf_t *buf) {
+  if (nread > 0)
+    tty_pty_partial_read_count += nread;
+  else
+    uv_close((uv_handle_t*) stream, NULL);
+}
+#endif  /* !defined(__ANDROID__) && !defined(_WIN32) */
+
+TEST_IMPL(tty_pty_partial) {
+#if !defined(_AIX)        && \
+    !defined(__ANDROID__) && \
+    !defined(__MVS__)     && \
+    !defined(_WIN32)
+  int master_fd, slave_fd;
+  uv_tty_t master_tty;
+  uv_thread_t tid;
+  uv_loop_t loop;
+  int i;
+
+  /* This test is not 100% deterministic. If the bug it is testing for is
+   * present, then it fails about 1 in 3 times, that's why it runs in a loop.
+   */
+  for (i = 0; i < 50; i++) {
+    if (openpty(&master_fd, &slave_fd, NULL, NULL, NULL))
+      RETURN_SKIP("No pty available, skipping.");
+
+    tty_pty_partial_read_count = 0;
+    ASSERT_OK(uv_loop_init(&loop));
+    ASSERT_OK(uv_tty_init(&loop, &master_tty, master_fd, 0));
+    ASSERT_OK(uv_read_start((uv_stream_t*) &master_tty,
+                            tty_pty_partial_alloc_cb,
+                            tty_pty_partial_read_cb));
+    ASSERT(uv_is_readable((uv_stream_t*) &master_tty));
+    ASSERT(uv_is_writable((uv_stream_t*) &master_tty));
+    ASSERT_OK(uv_thread_create(&tid, tty_pty_partial_feeder, &slave_fd));
+    ASSERT_OK(uv_run(&loop, UV_RUN_DEFAULT));
+    ASSERT_OK(uv_thread_join(&tid));
+    ASSERT_EQ(tty_pty_partial_read_count, 65536);
+    MAKE_VALGRIND_HAPPY(&loop);
+  }
 #endif
   return 0;
 }

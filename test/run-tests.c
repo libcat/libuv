@@ -160,19 +160,20 @@ static int maybe_run_test(int argc, char **argv) {
 
   if (strcmp(argv[1], "spawn_helper5") == 0) {
     const char out[] = "fourth stdio!\n";
+    int fd = argc > 2 ? atoi(argv[2]) : 3;
     notify_parent_process();
     {
 #ifdef _WIN32
       DWORD bytes;
-      WriteFile((HANDLE) _get_osfhandle(3), out, sizeof(out) - 1, &bytes, NULL);
+      WriteFile((HANDLE) _get_osfhandle(fd), out, sizeof(out) - 1, &bytes, NULL);
 #else
       ssize_t r;
 
       do
-        r = write(3, out, sizeof(out) - 1);
+        r = write(fd, out, sizeof(out) - 1);
       while (r == -1 && errno == EINTR);
 
-      fsync(3);
+      fsync(fd);
 #endif
     }
     return 1;
@@ -211,31 +212,27 @@ static int maybe_run_test(int argc, char **argv) {
   if (strcmp(argv[1], "spawn_helper8") == 0) {
     uv_os_fd_t closed_fd;
     uv_os_fd_t open_fd;
-#ifdef _WIN32
-    DWORD flags;
-    HMODULE kernelbase_module;
-    sCompareObjectHandles pCompareObjectHandles; /* function introduced in Windows 10 */
-#endif
     notify_parent_process();
     ASSERT_EQ(sizeof(closed_fd), read(0, &closed_fd, sizeof(closed_fd)));
     ASSERT_EQ(sizeof(open_fd), read(0, &open_fd, sizeof(open_fd)));
 #ifdef _WIN32
+    DWORD flags;
     ASSERT_GT((intptr_t) closed_fd, 0);
     ASSERT_GT((intptr_t) open_fd, 0);
-    ASSERT_NE(0, GetHandleInformation(open_fd, &flags));
-    kernelbase_module = GetModuleHandleW(L"kernelbase.dll");
-    pCompareObjectHandles = (sCompareObjectHandles)
-        GetProcAddress(kernelbase_module, "CompareObjectHandles");
-    ASSERT_NE(pCompareObjectHandles == NULL || \
-              !pCompareObjectHandles(open_fd, closed_fd), 0);
+    ASSERT_EQ(0, GetHandleInformation(open_fd, &flags));
+    ASSERT_EQ(ERROR_INVALID_HANDLE, GetLastError());
+    SetLastError(ERROR_SUCCESS);
+    ASSERT_EQ(0, GetHandleInformation(closed_fd, &flags));
+    ASSERT_EQ(ERROR_INVALID_HANDLE, GetLastError());
 #else
     ASSERT_GT(open_fd, 2);
     ASSERT_GT(closed_fd, 2);
-# if defined(__PASE__)  /* On IBMi PASE, write() returns 1 */
-    ASSERT_EQ(1, write(closed_fd, "x", 1));
-# else
+    /* The fd was closed in the child via O_CLOEXEC on exec().
+     * Writing to it must fail with EBADF on all Unix platforms.
+     * Note: an older PASE libc incorrectly returned 1 here; current PASE
+     * libc (IBM i 7.3+) correctly returns -1/EBADF like every other Unix. */
     ASSERT_EQ(-1, write(closed_fd, "x", 1));
-# endif  /* !__PASE__ */
+    ASSERT_EQ(EBADF, errno);
 #endif
     return 1;
   }

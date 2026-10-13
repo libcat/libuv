@@ -50,17 +50,13 @@
 #define TEST_PORT_3 9125
 
 #ifdef _WIN32
-# define TEST_PIPENAME "\\\\.\\pipe\\uv-test"
-# define TEST_PIPENAME_2 "\\\\.\\pipe\\uv-test2"
-# define TEST_PIPENAME_3 "\\\\.\\pipe\\uv-test3"
-#elif __ANDROID__
-# define TEST_PIPENAME "/data/local/tmp/uv-test-sock"
-# define TEST_PIPENAME_2 "/data/local/tmp/uv-test-sock2"
-# define TEST_PIPENAME_3 "/data/local/tmp/uv-test-sock3"
+# define TEST_PIPENAME "\\\\.\\pipe\\LOCAL\\uv-test"
+# define TEST_PIPENAME_2 "\\\\.\\pipe\\LOCAL\\uv-test2"
+# define TEST_PIPENAME_3 "\\\\.\\pipe\\LOCAL\\uv-test3"
 #else
-# define TEST_PIPENAME "/tmp/uv-test-sock"
-# define TEST_PIPENAME_2 "/tmp/uv-test-sock2"
-# define TEST_PIPENAME_3 "/tmp/uv-test-sock3"
+# define TEST_PIPENAME "uv-test-sock"
+# define TEST_PIPENAME_2 "uv-test-sock2"
+# define TEST_PIPENAME_3 "uv-test-sock3"
 #endif
 
 #ifdef _WIN32
@@ -288,12 +284,33 @@ typedef enum {
   int run_benchmark_##name(void);                                             \
   int run_benchmark_##name(void)
 
+#ifdef __linux__
+#define TEST_FS_IMPL(name)                                                    \
+  int run_test_##name(void);                                                  \
+  int run_test_##name##_iouring(void) {                                       \
+    uv_os_setenv("UV_USE_IO_URING", "1");                                     \
+    uv_loop_configure(uv_default_loop(), UV_LOOP_USE_IO_URING_SQPOLL);        \
+    return run_test_##name();                                                 \
+  }                                                                           \
+  int run_test_##name(void)
+#else
+#define TEST_FS_IMPL(name) TEST_IMPL(name)
+#endif
+
 #define HELPER_IMPL(name)                                                     \
   int run_helper_##name(void);                                                \
   int run_helper_##name(void)
 
 /* Format big numbers nicely. */
 char* fmt(char (*buf)[32], double d);
+
+#if defined(__clang__) ||                                \
+    defined(__GNUC__) ||                                 \
+    defined(__INTEL_COMPILER)
+# define UNUSED __attribute__((unused))
+#else
+# define UNUSED
+#endif
 
 /* Reserved test exit codes. */
 enum test_status {
@@ -312,6 +329,31 @@ enum test_status {
     fflush(stderr);                                                           \
     return TEST_SKIP;                                                         \
   } while (0)
+
+#ifdef _WIN32
+UNUSED static int is_in_appcontainer(void) {
+  HANDLE token;
+  DWORD ac;
+  DWORD len;
+  int ok;
+
+  if (!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &token))
+    return 0;
+  ac = 0;
+  len = sizeof(ac);
+  ok = GetTokenInformation(token, TokenIsAppContainer, &ac, len, &len);
+  CloseHandle(token);
+  return ok && ac != 0;
+}
+
+# define RETURN_SKIP_IN_APPCONTAINER(reason)                                  \
+  do {                                                                        \
+    if (is_in_appcontainer())                                                 \
+      RETURN_SKIP("AppContainer: " reason);                                   \
+  } while (0)
+#else
+# define RETURN_SKIP_IN_APPCONTAINER(reason) do {} while (0)
+#endif
 
 #if !defined(_WIN32)
 
@@ -334,19 +376,7 @@ enum test_status {
 extern int snprintf(char*, size_t, const char*, ...);
 #endif
 
-#if defined(__clang__) ||                                \
-    defined(__GNUC__) ||                                 \
-    defined(__INTEL_COMPILER)
-# define UNUSED __attribute__((unused))
-#else
-# define UNUSED
-#endif
-
-#if defined(_WIN32)
-#define notify_parent_process() ((void) 0)
-#else
 extern void notify_parent_process(void);
-#endif
 
 /* Fully close a loop */
 static void close_walk_cb(uv_handle_t* handle, void* arg) {

@@ -54,7 +54,7 @@ TEST_IMPL(tcp_reuseport) {
 #else
 
 #define NUM_LISTENING_THREADS 2
-#define MAX_TCP_CLIENTS 10
+#define MAX_TCP_CLIENTS 100
 
 static uv_tcp_t tcp_connect_handles[MAX_TCP_CLIENTS];
 static uv_connect_t tcp_connect_requests[MAX_TCP_CLIENTS];
@@ -177,6 +177,17 @@ TEST_IMPL(tcp_reuseport) {
   struct sockaddr_in addr;
   int r;
   int i;
+
+#if defined(__QEMU__)
+  /* QEMU's user-mode emulator sometimes runs threads in sequence
+   * instead of in parallel and that throws off the test.
+   * See https://github.com/libuv/libuv/issues/4777.
+   */
+  RETURN_SKIP("Unreliable under QEMU");
+#endif  /* defined(__QEMU__) */
+
+  if (uv_available_parallelism() < 2)
+    RETURN_SKIP("Unreliable without thread parallelism");
 
   r = uv_mutex_init(&mutex);
   ASSERT_OK(r);

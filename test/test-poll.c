@@ -633,7 +633,7 @@ TEST_IMPL(poll_unidirectional) {
  * In addition to regular files, we also disallow FIFOs on Darwin.
  */
 #ifdef __APPLE__
-#define TEST_POLL_FIFO_PATH "/tmp/uv-test-poll-fifo"
+#define TEST_POLL_FIFO_PATH "uv-test-poll-fifo"
 #endif
 TEST_IMPL(poll_bad_fdtype) {
 #if !defined(__sun) && \
@@ -663,7 +663,7 @@ TEST_IMPL(poll_bad_fdtype) {
 #ifdef __APPLE__
   ASSERT_OK(pipe(fd));
   /* Pipes should be permitted in kqueue. */
-  ASSERT_EQ(0, uv_poll_init(uv_default_loop(), &poll_handle, fd[0]));
+  ASSERT_OK(uv_poll_init(uv_default_loop(), &poll_handle, fd[0]));
   ASSERT_OK(close(fd[0]));
   ASSERT_OK(close(fd[1]));
 

@@ -19,14 +19,34 @@
  * IN THE SOFTWARE.
  */
 
+/* This blank UV_EXTERN squelches "‘uv_wtf8_to_utf16’ redeclared without
+ * dllimport attribute: previous dllimport ignored" warnings. We neither want
+ * or need dllimport or dllexport, we just include the source file verbatim.
+ * It's kind of sloppy because we end up with duplicate symbols, one in
+ * libuv.dll and one in this translation unit, but it works out fine in
+ * the end.
+ */
+#define UV_EXTERN
 #include "task.h"
 #define uv__malloc malloc
 #include "../src/idna.c"
 #include <string.h>
 
 TEST_IMPL(utf8_decode1) {
+  static const char invalid[][5] = {
+    "\xE2\x41\x42",
+    "\xE2\xC1\xC2",
+    "\xF1\x41\x42\x80",
+    "\xF1\x41\x80\x42",
+    "\xF1\x80\x41\x42",
+    "\xF1\xC1\xC2\x80",
+    "\xF1\xC1\x80\xC2",
+    "\xF1\x80\xC1\xC2",
+    "\xF1\x01\x41\xC1"
+  };
   const char* p;
   char b[32];
+  size_t j;
   int i;
 
   /* ASCII. */
@@ -94,6 +114,14 @@ TEST_IMPL(utf8_decode1) {
     ASSERT_PTR_EQ(p, b + i);
   }
 
+  /* Invalid continuation bytes must not cancel each other out. */
+  for (j = 0; j < ARRAY_SIZE(invalid); j++) {
+    p = invalid[j];
+    ASSERT_EQ((unsigned) -1,
+              uv__utf8_decode1(&p, invalid[j] + strlen(invalid[j])));
+    ASSERT_PTR_EQ(p, invalid[j] + strlen(invalid[j]));
+  }
+
   return 0;
 }
 
@@ -152,6 +180,12 @@ TEST_IMPL(idna_toascii) {
   F("\xC0\x80\xC1\x80", UV_EINVAL);  /* Overlong UTF-8 sequence. */
   F("\xC0\x80\xC1\x80.com", UV_EINVAL);  /* Overlong UTF-8 sequence. */
   F("", UV_EINVAL);
+  F("\xE2\x41\x42", UV_EINVAL);
+  F("\xE2\xC1\xC2.com", UV_EINVAL);
+  F("\xF1\x41\x42\x80", UV_EINVAL);
+  F("\xF1\x41\x80\x42.com", UV_EINVAL);
+  F("\xF1\x80\x41\x42", UV_EINVAL);
+  F("\xF1\x01\x41\xC1.com", UV_EINVAL);
   /* No conversion. */
   T(".", ".");
   T(".com", ".com");
@@ -228,5 +262,60 @@ TEST_IMPL(wtf8) {
   ASSERT_GT(len, 0);
   ASSERT_LT(len, ARRAY_SIZE(buf));
   uv_wtf8_to_utf16(input, buf, len);
+
+  /* Test 0x10FFFF, max unicode character */
+  static const char input_max[] = "\xF4\x8F\xBF\xBF";
+
+  len = uv_wtf8_length_as_utf16(input_max);
+  ASSERT_GT(len, 0);
+  ASSERT_LT(len, ARRAY_SIZE(buf));
+  uv_wtf8_to_utf16(input_max, buf, len);
+
+  /* Invalid start byte for UTF-8/WTF-8 sequence */
+  ASSERT_EQ(UV_EINVAL, uv_wtf8_length_as_utf16("\xFF"));
+  return 0;
+}
+
+TEST_IMPL(utf16_to_wtf8_exact_fill) {
+  /* Regression test for the off-by-one NUL write in uv_utf16_to_wtf8().
+   *
+   * The API contract says target_len_ptr excludes space for the NUL terminator.
+   * The caller must pass (buffer_size - 1) so that the NUL written at
+   * target[target_len] stays in bounds.
+   *
+   * U+4E2D encodes to 3 UTF-8 bytes (0xE4 0xB8 0xAD). With a buffer of size N
+   * (divisible by 3) and N/3 input characters, the worst-case output exactly
+   * fills the data portion. Passing target_len = N - 1 must keep the NUL inside
+   * the buffer, and passing target_len = N would write one byte past the end.
+   */
+  static const size_t sizes[] = { 3, 6, 48, 96, 192 };
+  size_t i;
+
+  for (i = 0; i < ARRAY_SIZE(sizes); i++) {
+    size_t buf_size = sizes[i];
+    size_t num_chars = buf_size / 3;
+    char mem[200];
+    uint16_t utf16[200];
+    char* target;
+    size_t target_len;
+    size_t j;
+
+    ASSERT_NOT_NULL(mem);
+    ASSERT_NOT_NULL(utf16);
+
+    /* Fill entire region including canary with 0xAA. */
+    memset(mem, 0xAA, buf_size + 1);
+    for (j = 0; j < num_chars; j++)
+      utf16[j] = 0x4E2D;  /* U+4E2D (中) — 3-byte UTF-8 */
+
+    /* Correct usage: target_len = buf_size - 1 reserves space for NUL. */
+    target = mem;
+    target_len = buf_size - 1;
+    uv_utf16_to_wtf8(utf16, num_chars, &target, &target_len);
+
+    /* NUL must land inside the buffer; canary byte must be untouched. */
+    ASSERT_EQ((unsigned char) mem[buf_size], 0xAA);
+  }
+
   return 0;
 }
