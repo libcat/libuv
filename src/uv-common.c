@@ -1121,15 +1121,6 @@ void uv_free_cpu_info(uv_cpu_info_t* cpu_infos, int count) {
 #endif  /* __linux__ */
 }
 
-#ifdef _MSC_VER
-#define uv__exchange_int_relaxed(p, v)                                        \
-  InterlockedExchangeNoFence((LONG volatile*)(p), v)
-#else
-#define uv__exchange_int_relaxed(p, v)                                        \
-  atomic_exchange_explicit((_Atomic int*)(p), v, memory_order_relaxed)
-#endif
-
-
 /* Also covers __clang__ and __INTEL_COMPILER. Disabled on Windows because
  * threads have already been forcibly terminated by the operating system
  * by the time destructors run, ergo, it's not safe to try to clean them up.
